@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { searchAnime, AnimeInfo } from "@/services/anime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +19,22 @@ import {
 } from "@/components/ui/alert-dialog"
 import { addDoc, collection } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AnimeInfo[]>([]);
   const { toast } = useToast();
+  const [user, setUser] = useState(auth.currentUser);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(authUser => {
+      setUser(authUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleSearch = async () => {
     const searchResults = await searchAnime(query);
@@ -31,22 +42,21 @@ export default function Home() {
   };
 
   const handleAddToList = async (anime: AnimeInfo, status: "watched" | "watchlist") => {
-    try {
-      if (!auth.currentUser) {
-        console.error("User not authenticated.");
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "User not authenticated.",
-        });
-        return;
-      }
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to add anime to your list.",
+      });
+      return;
+    }
 
+    try {
       const entry = {
         title: anime.title_english || anime.title,
         description: anime.synopsis || 'No description.',
         status,
-        userId: auth.currentUser.uid,
+        userId: user.uid,
       };
 
       await addDoc(collection(db, 'animeEntries'), entry);
@@ -64,6 +74,28 @@ export default function Home() {
       });
     }
   };
+
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto p-4">
+        <p>Please sign in to continue.</p>
+        <Button onClick={() => {
+              signInAnonymously(auth)
+              .then(() => {
+                console.log('Signed in anonymously.');
+              })
+              .catch((error) => {
+                console.error('Failed to sign in anonymously:', error);
+              });
+            }}>Sign In Anonymously</Button>
+      </div>
+    );
+  }
 
 
   return (

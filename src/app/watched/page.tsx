@@ -3,20 +3,32 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
+import { Button } from "@/components/ui/button";
+import { signInAnonymously } from 'firebase/auth';
 
 const WatchedPage = () => {
   const [animeList, setAnimeList] = useState([]);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(authUser => {
+      setUser(authUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchList = async () => {
-      if (!auth.currentUser) {
+      if (!user) {
         console.log("User not authenticated.");
         return;
       }
 
       const q = query(
         collection(db, 'animeEntries'),
-        where('userId', '==', auth.currentUser.uid),
+        where('userId', '==', user.uid),
         where('status', '==', 'watched')
       );
 
@@ -29,8 +41,31 @@ const WatchedPage = () => {
       }
     };
 
-    fetchList();
-  }, []);
+    if (user) {
+      fetchList();
+    }
+  }, [user]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto p-4">
+        <p>Please sign in to view your watched anime list.</p>
+        <Button onClick={() => {
+              signInAnonymously(auth)
+              .then(() => {
+                console.log('Signed in anonymously.');
+              })
+              .catch((error) => {
+                console.error('Failed to sign in anonymously:', error);
+              });
+            }}>Sign In Anonymously</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4">
