@@ -62,7 +62,7 @@ export default function Home() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Button onClick={handleSearch} className="bg-primary text-primary-foreground">Search</Button>
+        <Button onClick={handleSearch} style={{backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))'}}>Search</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
