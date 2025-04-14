@@ -17,85 +17,46 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { addDoc, collection } from 'firebase/firestore';
-import { db, auth } from '../firebase';
-import { signInAnonymously } from 'firebase/auth';
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AnimeInfo[]>([]);
   const { toast } = useToast();
-  const [user, setUser] = useState(auth.currentUser);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(authUser => {
-      setUser(authUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
 
   const handleSearch = async () => {
     const searchResults = await searchAnime(query);
     setResults(searchResults.data);
   };
 
-  const handleAddToList = async (anime: AnimeInfo, status: "watched" | "watchlist") => {
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "Please sign in to add anime to your list.",
-      });
-      return;
-    }
-
+  const handleAddToList = async (anime: AnimeInfo, listType: "watched" | "watchlist") => {
     try {
-      const entry = {
-        title: anime.title_english || anime.title,
-        description: anime.synopsis || 'No description.',
-        status,
-        userId: user.uid,
-      };
+      const storedList = localStorage.getItem(listType);
+      let list = storedList ? JSON.parse(storedList) : [];
 
-      await addDoc(collection(db, 'animeEntries'), entry);
-
+      const animeExists = list.some((item: AnimeInfo) => item.mal_id === anime.mal_id);
+      if (animeExists) {
+        toast({
+          variant: "destructive",
+          title: "Already in list",
+          description: `${anime.title_english || anime.title} is already in your ${listType}.`,
+        });
+        return;
+      }
+      list.push(anime);
+      localStorage.setItem(listType, JSON.stringify(list));
       toast({
         title: "Success",
-        description: `Added ${anime.title_english || anime.title} to ${status}.`,
+        description: `Added ${anime.title_english || anime.title} to ${listType}.`,
       });
     } catch (error: any) {
       console.error("Failed to add anime:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: `Failed to add ${anime.title_english || anime.title} to ${status}.`,
+        description: `Failed to add ${anime.title_english || anime.title} to ${listType}.`,
       });
     }
   };
-
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) {
-    return (
-      <div className="container mx-auto p-4">
-        <p>Please sign in to continue.</p>
-        <Button onClick={() => {
-              signInAnonymously(auth)
-              .then(() => {
-                console.log('Signed in anonymously.');
-              })
-              .catch((error) => {
-                console.error('Failed to sign in anonymously:', error);
-              });
-            }}>Sign In Anonymously</Button>
-      </div>
-    );
-  }
 
 
   return (
