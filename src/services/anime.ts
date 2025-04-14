@@ -1,3 +1,7 @@
+'use server';
+
+import axios from 'axios';
+
 /**
  * Represents basic information about an anime.
  */
@@ -18,6 +22,14 @@ export interface AnimeInfo {
    * A brief summary of the anime's plot.
    */
   synopsis: string | null;
+  /**
+   * URL to the anime's image.
+   */
+  images?: {
+    jpg: {
+      image_url: string;
+    };
+  };
 }
 
 /**
@@ -37,22 +49,21 @@ export interface AnimeSearchResponse {
  * @returns A promise that resolves to an AnimeSearchResponse object containing the search results.
  */
 export async function searchAnime(query: string): Promise<AnimeSearchResponse> {
-  // TODO: Implement this by calling an API.
+  try {
+    const response = await axios.get(
+      `https://api.jikan.moe/v4/anime?q=${query}&limit=10`
+    );
 
-  return {
-    data: [
-      {
-        mal_id: 1,
-        title_english: 'Cowboy Bebop',
-        title: 'Cowboy Bebop',
-        synopsis: 'A group of bounty hunters travels the solar system.',
-      },
-      {
-        mal_id: 5114,
-        title_english: 'Fullmetal Alchemist: Brotherhood',
-        title: 'Fullmetal Alchemist: Brotherhood',
-        synopsis: 'Two brothers search for the Philosopher\'s Stone to restore their bodies.',
-      },
-    ],
-  };
+    const animeData: AnimeInfo[] = response.data.data.map((anime: any) => ({
+      mal_id: anime.mal_id,
+      title_english: anime.title_english || null,
+      title: anime.title,
+      synopsis: anime.synopsis || null,
+      images: anime.images, // Include image URLs
+    }));
+    return { data: animeData };
+  } catch (error) {
+    console.error('Error fetching anime:', error);
+    return { data: [] };
+  }
 }
