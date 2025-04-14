@@ -17,6 +17,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { addDoc, collection } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -28,30 +30,41 @@ export default function Home() {
     setResults(searchResults.data);
   };
 
-  const handleAddToList = async (anime: AnimeInfo, listType: "watched" | "watchlist") => {
-    // Confirmation dialog
-    const confirmed = window.confirm(`Add "${anime.title_english || anime.title}" to ${listType}?`);
-
-    if (confirmed) {
-      try {
-        // Simulate adding to list (replace with actual logic)
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API call
-
-        // Show success toast
-        toast({
-          title: "Success",
-          description: `Added ${anime.title_english || anime.title} to ${listType}.`,
-        });
-      } catch (error) {
-        // Show failure toast
+  const handleAddToList = async (anime: AnimeInfo, status: "watched" | "watchlist") => {
+    try {
+      if (!auth.currentUser) {
+        console.error("User not authenticated.");
         toast({
           variant: "destructive",
           title: "Error",
-          description: `Failed to add ${anime.title_english || anime.title} to ${listType}.`,
+          description: "User not authenticated.",
         });
+        return;
       }
+
+      const entry = {
+        title: anime.title_english || anime.title,
+        description: anime.synopsis || 'No description.',
+        status,
+        userId: auth.currentUser.uid,
+      };
+
+      await addDoc(collection(db, 'animeEntries'), entry);
+
+      toast({
+        title: "Success",
+        description: `Added ${anime.title_english || anime.title} to ${status}.`,
+      });
+    } catch (error: any) {
+      console.error("Failed to add anime:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to add ${anime.title_english || anime.title} to ${status}.`,
+      });
     }
   };
+
 
   return (
     <div className="container mx-auto p-4">
